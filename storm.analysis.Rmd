@@ -1,0 +1,134 @@
+---
+title: "Analysis of Damages from NOAA Storm Data"
+output: html_document
+---
+
+## Introduction
+
+Storms and other severe weather events can cause both public health and economic problems for communities and municipalities. Many severe events can result in fatalities, injuries, and property damage, and preventing such outcomes to the extent possible is a key concern.
+
+This project involves exploring the U.S. National Oceanic and Atmospheric Administration's (NOAA) storm database. This database tracks characteristics of major storms and weather events in the United States, including when and where they occur, as well as estimates of any fatalities, injuries, and property damage.
+
+The data for this report comes in the form of a comma-separated-value file compressed via the bzip2 algorithm to reduce its size, and has been included in this repository as well.
+
+The events in the database start in the year 1950 and end in November 2011. In the earlier years of the database there are generally fewer events recorded, most likely due to a lack of good records. More recent years should be considered more complete.
+
+## Overview
+
+The goal of this report is to explore the NOAA Storm Database and answer some basic questions about severe weather events.  Specifically:
+
+1. Across the United States, which types of events (as indicated in the EVTYPE variable) are most harmful with respect to population health?
+
+2. Across the United States, which types of events have the greatest economic consequences?
+
+## Analysis
+
+We must first read in the data for analysis:
+
+```{r}
+setwd("/Users/Josh/GitHub/ReproducibleResearchProject2")
+data <- read.csv('data/repdata-data-StormData.csv')
+```
+
+### Most Harmful Events (Health Damages)
+
+#### Data Processing 
+There are two columns in the data set that relate to harmful effects to population health: INJURIES and FATALITIES. In order to determine which event types are the worst, we can simply combine this to the total number of fatalities and injuries for each event type. 
+
+```{r}
+library(plyr)
+event.data <- ddply(data,~EVTYPE,summarize,injuries=sum(INJURIES),fatalities=sum(FATALITIES))
+event.data$total <- event.data$injuries + event.data$fatalities
+sorted.event.data <- event.data[with(event.data, order(-total)),]
+```
+
+#### Results
+
+After the transformation, here are are the top 5 most damaging event types in terms of public health:
+
+```{r}
+print(head(sorted.event.data, n=5L), row.names=FALSE)
+```
+
+To get a better idea of how each of these event types compare to each other in terms of damages, we can look at the top 10 events against each other in a chart:
+
+```{r}
+library(ggplot2)
+ggplot(sorted.event.data[1:10,], aes(x=factor(EVTYPE, ordered=FALSE), y=total,fill=factor(EVTYPE))) + geom_bar(stat="identity") + 
+    scale_fill_discrete(name ="Event Type") +
+    scale_y_continuous("Total Count of Injuries and Fatalities") +
+    scale_x_discrete("Event Type") +
+    theme(axis.ticks.x = element_blank(),axis.text.x = element_blank())
+```
+
+We can see here that tornados are by far the most damaging event, consisting of more damages than the other top 10 events combined.
+
+### Most Expensive Events (Financial Damages)
+
+#### Data Processing
+
+There are also two columns in the data set that relate to financial impact of a storm: PROPDMG and CROPDMG. However, these are in units defined in the PROPDMGEXP and CROPDMGEXP columns, respectively. So we'll first need to define a new column that is for total damages by event in a consistent set of units:
+
+```{r}
+data$PROPDMG[data$PROPDMGEXP == "K"] <- data$PROPDMG[data$PROPDMGEXP == 
+    "K"] * 10^3
+data$PROPDMG[data$PROPDMGEXP == "M"] <- data$PROPDMG[data$PROPDMGEXP == 
+    "M"] * 10^6
+data$PROPDMG[data$PROPDMGEXP == "B"] <- data$PROPDMG[data$PROPDMGEXP == 
+    "B"] * 10^9
+data$PROPDMG[data$PROPDMGEXP == "0"] <- data$PROPDMG[data$PROPDMGEXP == 
+    "0"] * 10^0
+data$PROPDMG[data$PROPDMGEXP == "5"] <- data$PROPDMG[data$PROPDMGEXP == 
+    "5"] * 10^5
+data$PROPDMG[data$PROPDMGEXP == "7"] <- data$PROPDMG[data$PROPDMGEXP == 
+    "7"] * 10^7
+data$PROPDMG[data$PROPDMGEXP == "6"] <- data$PROPDMG[data$PROPDMGEXP == 
+    "6"] * 10^6
+data$PROPDMG[data$PROPDMGEXP == "3"] <- data$PROPDMG[data$PROPDMGEXP == 
+    "3"] * 10^3
+data$PROPDMG[data$PROPDMGEXP == "4"] <- data$PROPDMG[data$PROPDMGEXP == 
+    "4"] * 10^4
+
+data$CROPDMG[data$CROPDMGEXP == "K"] <- data$CROPDMG[data$CROPDMGEXP == 
+    "K"] * 10^3
+data$CROPDMG[data$CROPDMGEXP == "M"] <- data$CROPDMG[data$CROPDMGEXP == 
+    "M"] * 10^6
+data$CROPDMG[data$CROPDMGEXP == "B"] <- data$CROPDMG[data$CROPDMGEXP == 
+    "B"] * 10^9
+data$CROPDMG[data$CROPDMGEXP == "0"] <- data$CROPDMG[data$CROPDMGEXP == 
+    "0"] * 10^0
+data$CROPDMG[data$CROPDMGEXP == "5"] <- data$CROPDMG[data$CROPDMGEXP == 
+    "5"] * 10^5
+data$CROPDMG[data$CROPDMGEXP == "7"] <- data$CROPDMG[data$CROPDMGEXP == 
+    "7"] * 10^7
+data$CROPDMG[data$CROPDMGEXP == "6"] <- data$CROPDMG[data$CROPDMGEXP == 
+    "6"] * 10^6
+data$CROPDMG[data$CROPDMGEXP == "3"] <- data$CROPDMG[data$CROPDMGEXP == 
+    "3"] * 10^3
+data$CROPDMG[data$CROPDMGEXP == "4"] <- data$CROPDMG[data$CROPDMGEXP == 
+    "4"] * 10^4
+```
+
+#### Results
+
+Now that we have the data adjusted we can look at the most damaging events financially in USD:
+
+```{r}
+financial.event.data <- ddply(data,~EVTYPE,summarize,cropdmg=sum(CROPDMG),propdmg=sum(PROPDMG))
+financial.event.data$total <- financial.event.data$cropdmg + financial.event.data$propdmg
+sorted.financial.event.data <- financial.event.data[with(financial.event.data, order(-total)),]
+print(head(sorted.financial.event.data, n=5L), row.names=FALSE)
+```
+
+Once again, to get a better idea of how each of these event types compare to each other in terms of financial damages, we can look at the top 10 events against each other in a chart:
+
+```{r}
+library(ggplot2)
+ggplot(sorted.financial.event.data[1:10,], aes(x=factor(EVTYPE, ordered=FALSE), y=total,fill=factor(EVTYPE))) + geom_bar(stat="identity") + 
+    scale_fill_discrete(name ="Event Type") +
+    scale_y_continuous("Total Cost of Damages ($)") +
+    scale_x_discrete("Event Type") +
+    theme(axis.ticks.x = element_blank(),axis.text.x = element_blank())
+```
+
+Here we can see that floods are by far the most damaging in terms of crop and property damages financially. Hurricanes and tornadoes are also major contributors to financial damage.
